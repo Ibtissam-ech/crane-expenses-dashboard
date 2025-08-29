@@ -76,7 +76,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Header with improved styling
-st.markdown('<h1 class="title-header">🏗️ Crane Expenses Dashboard 2024-2025</h1>', unsafe_allow_html=True)
+st.markdown('<h1 class="title-header">🏗️ Crane Expenses Dashboard</h1>', unsafe_allow_html=True)
 st.markdown("_Professional Analysis Dashboard v1.0_")
 
 @st.cache_data
@@ -84,21 +84,22 @@ def load_data(file):
     data = pd.read_excel(file)
     return data
 
-# Budget data (you can replace this with actual budget data)
+# Budget data (dynamic based on years in data)
 @st.cache_data
-def get_budget_data():
-    budget = {
-        '2024': {
-            'JANVIER': 150000, 'FÉVRIER': 145000, 'MARS': 155000, 'AVRIL': 160000,
-            'MAI': 165000, 'JUIN': 170000, 'JUILLET': 175000, 'AOÛT': 180000,
-            'SEPTEMBRE': 185000, 'OCTOBRE': 190000, 'NOVEMBRE': 195000, 'DÉCEMBRE': 200000
-        },
-        '2025': {
-            'JANVIER': 210000, 'FÉVRIER': 215000, 'MARS': 220000, 'AVRIL': 225000,
-            'MAI': 230000, 'JUIN': 235000, 'JUILLET': 240000, 'AOÛT': 245000,
-            'SEPTEMBRE': 250000, 'OCTOBRE': 255000, 'NOVEMBRE': 260000, 'DÉCEMBRE': 265000
+def get_budget_data(years):
+    """Generate budget data for all years present in the dataset"""
+    budget = {}
+    base_budget = 150000
+    for year in years:
+        budget[str(year)] = {
+            'JANVIER': base_budget, 'FÉVRIER': base_budget * 0.97, 
+            'MARS': base_budget * 1.03, 'AVRIL': base_budget * 1.07,
+            'MAI': base_budget * 1.10, 'JUIN': base_budget * 1.13,
+            'JUILLET': base_budget * 1.17, 'AOÛT': base_budget * 1.20,
+            'SEPTEMBRE': base_budget * 1.23, 'OCTOBRE': base_budget * 1.27,
+            'NOVEMBRE': base_budget * 1.30, 'DÉCEMBRE': base_budget * 1.33
         }
-    }
+        base_budget *= 1.1  # Increase base budget by 10% each year
     return budget
 
 def create_download_links(df, filtered_df):
@@ -154,17 +155,23 @@ if upload_file is None:
     st.stop()
 
 df = load_data(upload_file)
-budget_data = get_budget_data()
+
+# Get unique years and sort them
+all_years = sorted(df['Annee'].unique())
+budget_data = get_budget_data(all_years)
+
+# Update title with dynamic years
+year_range = f"{min(all_years)}-{max(all_years)}"
+st.markdown(f'<h1 class="title-header">🏗️ Crane Expenses Dashboard {year_range}</h1>', unsafe_allow_html=True)
 
 # Advanced Filters Section
 st.sidebar.markdown("### 🔧 Advanced Filters")
 
-# Year filter
-years = sorted(df['Annee'].unique())
+# Year filter (sorted)
 selected_years = st.sidebar.multiselect(
     "Select Year(s)", 
-    options=years, 
-    default=years
+    options=all_years, 
+    default=all_years
 )
 
 # Month filter
@@ -240,6 +247,9 @@ def create_3d_surface_plot(data):
     plot_data = data.copy()
     plot_data['Month_Num'] = plot_data['Mois'].map(month_mapping)
     
+    # Sort data by year and month for correct ordering
+    plot_data = plot_data.sort_values(['Annee', 'Month_Num'])
+    
     # Create date labels for the y-axis
     plot_data['Date_Label'] = plot_data.apply(lambda row: f"{row['Month_Num']}/{row['Annee']}", axis=1)
     
@@ -290,7 +300,7 @@ def create_3d_surface_plot(data):
     return fig
 
 def create_3d_scatter_plot(data):
-    """Create a 3D scatter plot with proper date formatting"""
+    """Create a 3D scatter plot with proper date formatting for any years"""
     month_mapping = {
         'JANVIER': 1, 'FÉVRIER': 2, 'MARS': 3, 'AVRIL': 4, 'MAI': 5, 'JUIN': 6,
         'JUILLET': 7, 'AOÛT': 8, 'SEPTEMBRE': 9, 'OCTOBRE': 10, 'NOVEMBRE': 11, 'DÉCEMBRE': 12
@@ -299,11 +309,15 @@ def create_3d_scatter_plot(data):
     plot_data = data.copy()
     plot_data['Month_Num'] = plot_data['Mois'].map(month_mapping)
     
+    # Sort data by year and month for correct ordering
+    plot_data = plot_data.sort_values(['Annee', 'Month_Num'])
+    
     # Create date labels for the y-axis
     plot_data['Date_Label'] = plot_data.apply(lambda row: f"{row['Month_Num']}/{row['Annee']}", axis=1)
     
-    # Create a numeric representation for the y-axis
-    plot_data['Time_Index'] = (plot_data['Annee'] - 2024) * 12 + plot_data['Month_Num']
+    # UNIVERSAL FIX: Calculate time index based on minimum year
+    min_year = data['Annee'].min()
+    plot_data['Time_Index'] = (plot_data['Annee'] - min_year) * 12 + plot_data['Month_Num']
     
     fig = px.scatter_3d(
         plot_data,
@@ -322,11 +336,11 @@ def create_3d_scatter_plot(data):
         }
     )
     
-    # Create custom y-axis labels
+    # Create custom y-axis labels (UNIVERSAL - works for any years)
     unique_times = sorted(plot_data['Time_Index'].unique())
     y_labels = []
     for time_idx in unique_times:
-        year = 2024 + (time_idx - 1) // 12
+        year = min_year + (time_idx - 1) // 12
         month = (time_idx - 1) % 12 + 1
         y_labels.append(f"{month}/{year}")
     
@@ -339,7 +353,7 @@ def create_3d_scatter_plot(data):
                 ticktext=y_labels
             ),
             zaxis=dict(title='Expenses (DH)'),
-            camera=dict(eye=dict(x=1.8, y=1.8, z=1.2))
+            camera=dict(eye=dict(x=0, y=-2.5, z=1.5))
         ),
         width=1000,
         height=600,
@@ -356,6 +370,8 @@ def create_advanced_bar_chart(data):
     month_order = ['JANVIER', 'FÉVRIER', 'MARS', 'AVRIL', 'MAI', 'JUIN', 
                   'JUILLET', 'AOÛT', 'SEPTEMBRE', 'OCTOBRE', 'NOVEMBRE', 'DÉCEMBRE']
     monthly_data['Mois'] = pd.Categorical(monthly_data['Mois'], categories=month_order, ordered=True)
+    
+    # Sort by year and month for correct ordering
     monthly_data = monthly_data.sort_values(['Annee', 'Mois'])
     
     # Create a combined label for x-axis
@@ -402,9 +418,13 @@ def create_budget_vs_actual_chart(data, budget_data):
         axis=1
     )
     
-    # Create month-year label
+    # Sort by year and month for correct ordering
     month_order = ['JANVIER', 'FÉVRIER', 'MARS', 'AVRIL', 'MAI', 'JUIN', 
                   'JUILLET', 'AOÛT', 'SEPTEMBRE', 'OCTOBRE', 'NOVEMBRE', 'DÉCEMBRE']
+    monthly_actual['Mois'] = pd.Categorical(monthly_actual['Mois'], categories=month_order, ordered=True)
+    monthly_actual = monthly_actual.sort_values(['Annee', 'Mois'])
+    
+    # Create month-year label
     monthly_actual['Month_Year'] = monthly_actual.apply(
         lambda row: f"{month_order.index(row['Mois']) + 1}/{row['Annee']}", axis=1
     )
@@ -536,4 +556,3 @@ if selected_years:
 
 else:
     st.info("Select years to view detailed analysis")
-
