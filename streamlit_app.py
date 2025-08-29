@@ -280,7 +280,7 @@ def create_3d_surface_plot(data):
                 ticktext=y_labels
             ),
             zaxis=dict(title='Expenses (DH)'),
-            camera=dict(eye=dict(x=0, y=-2.5, z=0.5))
+            camera=dict(eye=dict(x=1.8, y=1.8, z=1.2))
         ),
         width=1000,
         height=600,
@@ -536,3 +536,4 @@ if selected_years:
 
 else:
     st.info("Select years to view detailed analysis")
+
