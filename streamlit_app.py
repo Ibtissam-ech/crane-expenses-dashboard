@@ -76,7 +76,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Header with improved styling
-st.markdown('<h1 class="title-header">🏗️ Crane Expenses Dashboard</h1>', unsafe_allow_html=True)
+st.markdown('<h1 class="title-header">🏗️ Crane Expenses Dashboard </h1>', unsafe_allow_html=True)
 st.markdown("_Professional Analysis Dashboard v1.0_")
 
 @st.cache_data
@@ -556,3 +556,4 @@ if selected_years:
 
 else:
     st.info("Select years to view detailed analysis")
+
